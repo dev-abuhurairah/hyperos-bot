@@ -1,0 +1,33 @@
+{
+  "telegram_bot_token": "8984371861:AAGCHaFCmXnQzA_5PPbdmnx9FyQR4oOdtms",
+  "telegram_chat_id": "@hyperosapks_miui",
+  "channel_username": "@hyperosapks_miui",
+  "telegram_api_id": 29882735,
+  "telegram_api_hash": "2c1d54d7179a8c1b0ce2d4ace0cbd715",
+  "check_interval_seconds": 300,
+  "delete_apk_after_upload": true,
+  "channel_signature": "📢 Updates: @hyperosapks_miui\n⚡️ #HyperOS #Xiaomi #AppUpdate",
+  "tracked_apps": [
+    "Security",
+    "Launcher",
+    "System UI",
+    "Gallery",
+    "Camera",
+    "Themes",
+    "Always-on Display",
+    "AOD",
+    "Weather",
+    "Notes",
+    "File Manager",
+    "Settings",
+    "Screen Recorder",
+    "Clock",
+    "Calculator",
+    "Scanner",
+    "Package Installer",
+    "Cast",
+    "Compass",
+    "Recorder",
+    "Health"
+  ]
+}

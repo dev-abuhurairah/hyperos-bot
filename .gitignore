@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*$py.class
+downloads/
+*.log
+.env
+hyperos_bot_session.session
+hyperos_bot_session.session-journal
