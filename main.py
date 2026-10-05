@@ -151,6 +151,9 @@ def check_for_updates(scraper, db, uploader, config, is_first_run=False):
 
         except Exception as e:
             logger.error(f"Error processing update '{title}': {e}", exc_info=True)
+            with open("last_error.log", "w", encoding="utf-8") as ef:
+                ef.write(f"Error: {e}\nApp: {title}\n")
+            raise e
 
 def main():
     parser = argparse.ArgumentParser(description="HyperOS APKMirror Auto-Updater Bot for Telegram")

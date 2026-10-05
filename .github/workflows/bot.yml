@@ -40,7 +40,18 @@ jobs:
         run: |
           python main.py --once
 
+      - name: Print Execution Logs
+        if: always()
+        run: |
+          if [ -f bot.log ]; then
+            echo "### Execution Log" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat bot.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Commit and save posted database
+        if: success()
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"

@@ -1,6 +1,6 @@
 import os
 import re
-import json
+import html
 import asyncio
 import logging
 import requests
@@ -10,10 +10,10 @@ logger = logging.getLogger("HyperOSBot.Telegram")
 class TelegramUploader:
     def __init__(self, config=None):
         config = config or {}
-        # Support both Heroku Environment Variables and config.json
+        # Support both Heroku/GitHub Environment Variables and config.json
         self.bot_token = (os.getenv("BOT_TOKEN") or config.get("telegram_bot_token", "")).strip()
         self.chat_id = (os.getenv("CHAT_ID") or config.get("telegram_chat_id", "")).strip()
-        self.channel_username = (os.getenv("CHANNEL_USERNAME") or config.get("channel_username", "@YourChannel")).strip()
+        self.channel_username = (os.getenv("CHANNEL_USERNAME") or config.get("channel_username", "@hyperosapks_miui")).strip()
         
         api_id_env = os.getenv("API_ID") or config.get("telegram_api_id")
         self.api_id = int(api_id_env) if api_id_env and str(api_id_env).strip().isdigit() else None
@@ -36,7 +36,7 @@ class TelegramUploader:
                 logger.warning(f"Could not initialize Telethon client: {e}")
 
     def format_caption(self, item, details, file_size_mb):
-        """Format an ultra-clean, stylish caption attached to the APK file."""
+        """Format an ultra-clean, stylish HTML caption attached to the APK file."""
         title = item['title']
 
         # Extract clean App Name and Version
@@ -48,12 +48,18 @@ class TelegramUploader:
             app_name = title
             version = "Latest"
 
-        # Tag name without spaces / special characters
         clean_tag = re.sub(r'[^a-zA-Z0-9]', '', app_name.replace('Xiaomi', '').replace('MIUI', '').strip())
         if not clean_tag:
             clean_tag = "SystemApp"
 
-        # Format changelog nicely with clean bullet points
+        # Escape HTML special chars
+        app_name_esc = html.escape(app_name)
+        version_esc = html.escape(version)
+        min_android_esc = html.escape(details.get('min_android', 'Android 8.0+'))
+        arch_esc = html.escape(details.get('arch', 'Universal'))
+        link_esc = html.escape(item['link'])
+
+        # Format changelog
         raw_changelog = details.get('changelog', '').strip()
         if not raw_changelog or "Fixed known bugs" in raw_changelog:
             formatted_changelog = (
@@ -61,41 +67,36 @@ class TelegramUploader:
                 "  ▫️ Improved performance and system stability."
             )
         else:
-            # Clean up and split lines
             lines = [line.strip() for line in raw_changelog.split('\n') if line.strip()]
             cleaned_bullets = []
             for l in lines:
                 l_clean = re.sub(r'^[\d\.\-\*\•\>\s]+', '', l).strip()
                 if l_clean:
-                    cleaned_bullets.append(f"  ▫️ {l_clean}")
+                    cleaned_bullets.append(f"  ▫️ {html.escape(l_clean)}")
             
             if cleaned_bullets:
-                formatted_changelog = "\n".join(cleaned_bullets[:6]) # max 6 lines to fit Telegram limit
+                formatted_changelog = "\n".join(cleaned_bullets[:6])
             else:
                 formatted_changelog = "  ▫️ Bug fixes and performance improvements."
 
-        min_android = details.get('min_android', 'Android 8.0+')
-        arch = details.get('arch', 'Universal')
-
-        # Telegram file caption has a limit of 1024 characters
         caption = (
-            f"⚡️ **HyperOS System Update** ⚡️\n\n"
-            f"📱 **App:** `{app_name}`\n"
-            f"🏷 **Version:** `{version}`\n"
-            f"▫️ **Architecture:** `{arch}`\n"
-            f"▫️ **Min Android:** `{min_android}`\n"
-            f"▫️ **File Size:** `{file_size_mb:.2f} MB`\n\n"
-            f"📋 **What's New / Changelog:**\n"
+            f"⚡️ <b>HyperOS System Update</b> ⚡️\n\n"
+            f"📱 <b>App:</b> <code>{app_name_esc}</code>\n"
+            f"🏷 <b>Version:</b> <code>{version_esc}</code>\n"
+            f"▫️ <b>Architecture:</b> <code>{arch_esc}</code>\n"
+            f"▫️ <b>Min Android:</b> <code>{min_android_esc}</code>\n"
+            f"▫️ <b>File Size:</b> <code>{file_size_mb:.2f} MB</code>\n\n"
+            f"📋 <b>What's New / Changelog:</b>\n"
             f"{formatted_changelog}\n\n"
-            f"🔗 [APKMirror Source]({item['link']})\n\n"
+            f"🔗 <a href=\"{link_esc}\">APKMirror Source</a>\n\n"
             f"#{clean_tag} #HyperOS #Xiaomi #Update\n"
-            f"{self.signature}"
+            f"📢 Updates: {html.escape(self.channel_username)}"
         )
         return caption
 
     def send_via_bot_api(self, file_path, caption):
-        """Send APK file via standard Telegram Bot API (< 50 MB)."""
-        logger.info(f"Sending APK file via Telegram Bot API to {self.chat_id}...")
+        """Send APK file via standard Telegram Bot API (< 50 MB) using HTML mode."""
+        logger.info(f"Sending APK file via Telegram Bot API (HTML mode) to {self.chat_id}...")
         url = f"https://api.telegram.org/bot{self.bot_token}/sendDocument"
 
         filename = os.path.basename(file_path)
@@ -104,19 +105,21 @@ class TelegramUploader:
             data = {
                 'chat_id': self.chat_id,
                 'caption': caption,
-                'parse_mode': 'Markdown'
+                'parse_mode': 'HTML'
             }
             resp = requests.post(url, data=data, files=files, timeout=300)
             result = resp.json()
 
             if not result.get('ok'):
-                raise Exception(f"Telegram Bot API Error: {result.get('description')}")
+                err_msg = result.get('description', 'Unknown Telegram Error')
+                logger.error(f"Telegram Bot API Error: {err_msg}")
+                raise Exception(f"Telegram Bot API Error: {err_msg}")
 
             logger.info("Successfully uploaded APK to Telegram channel!")
             return result
 
     async def _send_via_telethon(self, file_path, caption):
-        """Send APK file via Telethon MTProto (supports up to 2 GB)."""
+        """Send APK file via Telethon MTProto (supports up to 2 GB) using HTML mode."""
         if not self.telethon_client:
             raise Exception("Telethon client not configured.")
 
@@ -132,7 +135,7 @@ class TelegramUploader:
             entity=self.chat_id,
             file=file_path,
             caption=caption,
-            parse_mode='md',
+            parse_mode='html',
             force_document=True,
             progress_callback=progress
         )
@@ -159,7 +162,7 @@ class TelegramUploader:
                     f"File is {file_size_mb:.2f} MB (exceeds 50MB Bot API limit) and API_ID/API_HASH are not set. "
                     "Sending post with direct download link."
                 )
-                return self.send_text_post(caption + "\n\n⚠️ *(File >50MB: Download directly from APKMirror link above)*")
+                return self.send_text_post(caption + "\n\n⚠️ <i>(File >50MB: Download directly from APKMirror link above)</i>")
         else:
             return self.send_via_bot_api(file_path, caption)
 
@@ -168,7 +171,7 @@ class TelegramUploader:
         resp = requests.post(url, json={
             'chat_id': self.chat_id,
             'text': text,
-            'parse_mode': 'Markdown',
+            'parse_mode': 'HTML',
             'disable_web_page_preview': False
         }, timeout=30)
         res = resp.json()
