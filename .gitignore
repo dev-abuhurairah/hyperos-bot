@@ -6,3 +6,6 @@ downloads/
 .env
 hyperos_bot_session.session
 hyperos_bot_session.session-journal
+
+*.session
+*.session-journal

@@ -151,16 +151,19 @@ class TelegramUploader:
         # If file is over 49 MB, use Telethon MTProto
         if file_size_mb >= 49.0:
             if self.api_id and self.api_hash:
-                logger.info(f"File is {file_size_mb:.2f} MB. Using Telethon for high-capacity upload...")
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                return loop.run_until_complete(self._send_via_telethon(file_path, caption))
+                try:
+                    logger.info(f"File is {file_size_mb:.2f} MB. Using Telethon for high-capacity upload...")
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    return loop.run_until_complete(self._send_via_telethon(file_path, caption))
+                except Exception as e:
+                    logger.error(f"Telethon upload failed: {e}. Falling back to text post...", exc_info=True)
+                    return self.send_text_post(caption)
             else:
                 logger.warning(
-                    f"File is {file_size_mb:.2f} MB (exceeds 50MB Bot API limit) and API_ID/API_HASH are not set. "
-                    "Sending post with direct download link."
+                    f"File is {file_size_mb:.2f} MB (exceeds 50MB limit) and API_ID/API_HASH are not set."
                 )
-                return self.send_text_post(caption + "\n\n⚠️ <i>(File >50MB: Download directly from APKMirror link above)</i>")
+                return self.send_text_post(caption)
         else:
             return self.send_via_bot_api(file_path, caption)
 
