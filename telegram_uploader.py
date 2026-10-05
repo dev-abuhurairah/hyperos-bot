@@ -88,7 +88,6 @@ class TelegramUploader:
             f"▫️ <b>File Size:</b> <code>{file_size_mb:.2f} MB</code>\n\n"
             f"📋 <b>What's New / Changelog:</b>\n"
             f"{formatted_changelog}\n\n"
-            f"🔗 <a href=\"{link_esc}\">APKMirror Source</a>\n\n"
             f"#{clean_tag} #HyperOS #Xiaomi #Update\n"
             f"📢 Updates: {html.escape(self.channel_username)}"
         )
@@ -120,27 +119,26 @@ class TelegramUploader:
 
     async def _send_via_telethon(self, file_path, caption):
         """Send APK file via Telethon MTProto (supports up to 2 GB) using HTML mode."""
-        if not self.telethon_client:
-            raise Exception("Telethon client not configured.")
+        from telethon import TelegramClient
+        async with TelegramClient("hyperos_bot_session", self.api_id, self.api_hash) as client:
+            await client.start(bot_token=self.bot_token)
+            logger.info(f"Uploading APK file via Telethon MTProto to {self.chat_id}...")
 
-        await self.telethon_client.start(bot_token=self.bot_token)
-        logger.info(f"Uploading APK file via Telethon MTProto to {self.chat_id}...")
+            def progress(current, total):
+                pct = (current / total) * 100
+                if int(pct) % 25 == 0:
+                    logger.info(f"Upload Progress: {pct:.1f}% ({current // (1024*1024)}MB / {total // (1024*1024)}MB)")
 
-        def progress(current, total):
-            pct = (current / total) * 100
-            if int(pct) % 25 == 0:
-                logger.info(f"Upload Progress: {pct:.1f}% ({current // (1024*1024)}MB / {total // (1024*1024)}MB)")
-
-        msg = await self.telethon_client.send_file(
-            entity=self.chat_id,
-            file=file_path,
-            caption=caption,
-            parse_mode='html',
-            force_document=True,
-            progress_callback=progress
-        )
-        logger.info("Successfully uploaded APK to Telegram via Telethon!")
-        return msg
+            msg = await client.send_file(
+                entity=self.chat_id,
+                file=file_path,
+                caption=caption,
+                parse_mode='html',
+                force_document=True,
+                progress_callback=progress
+            )
+            logger.info("Successfully uploaded APK to Telegram via Telethon!")
+            return msg
 
     def upload_post(self, file_path, item, details, file_size_mb):
         """Uploads the APK file attached with the beautiful caption."""
@@ -152,7 +150,7 @@ class TelegramUploader:
 
         # If file is over 49 MB, use Telethon MTProto
         if file_size_mb >= 49.0:
-            if self.telethon_client:
+            if self.api_id and self.api_hash:
                 logger.info(f"File is {file_size_mb:.2f} MB. Using Telethon for high-capacity upload...")
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
