@@ -12,7 +12,12 @@ class TelegramUploader:
         config = config or {}
         # Support both Heroku/GitHub Environment Variables and config.json
         self.bot_token = (os.getenv("BOT_TOKEN") or config.get("telegram_bot_token", "")).strip()
-        self.chat_id = (os.getenv("CHAT_ID") or config.get("telegram_chat_id", "")).strip()
+        self.chat_id = os.getenv("CHAT_ID") or config.get("telegram_chat_id", "-1002054234005")
+        if isinstance(self.chat_id, str):
+            self.chat_id = self.chat_id.strip()
+            if self.chat_id.startswith("-100") and self.chat_id.replace("-", "").isdigit():
+                self.chat_id = int(self.chat_id)
+
         self.channel_username = (os.getenv("CHANNEL_USERNAME") or config.get("channel_username", "@hyperosapks_miui")).strip()
         
         api_id_env = os.getenv("API_ID") or config.get("telegram_api_id")
@@ -21,19 +26,21 @@ class TelegramUploader:
         
         self.signature = config.get("channel_signature") or f"📢 Updates: {self.channel_username}\n⚡️ #HyperOS #Xiaomi #AppUpdate"
 
-        # Telethon client for large files (up to 2 GB)
-        self.telethon_client = None
-        if self.api_id and self.api_hash and self.bot_token:
-            try:
-                from telethon import TelegramClient
-                self.telethon_client = TelegramClient(
-                    "hyperos_bot_session", 
-                    self.api_id, 
-                    self.api_hash
-                )
-                logger.info("Telethon MTProto client initialized (supports up to 2 GB uploads).")
-            except Exception as e:
-                logger.warning(f"Could not initialize Telethon client: {e}")
+    def get_numeric_chat_id(self):
+        """Ensures we have the numeric chat ID for MTProto."""
+        if isinstance(self.chat_id, int):
+            return self.chat_id
+        if str(self.chat_id).startswith("-100") and str(self.chat_id).replace("-", "").isdigit():
+            return int(self.chat_id)
+        try:
+            url = f"https://api.telegram.org/bot{self.bot_token}/getChat"
+            r = requests.get(url, params={"chat_id": self.chat_id}, timeout=15)
+            data = r.json()
+            if data.get("ok"):
+                return data["result"]["id"]
+        except Exception as e:
+            logger.warning(f"Could not resolve numeric chat ID: {e}")
+        return self.chat_id
 
     def format_caption(self, item, details, file_size_mb):
         """Format an ultra-clean, stylish HTML caption attached to the APK file."""
@@ -57,7 +64,6 @@ class TelegramUploader:
         version_esc = html.escape(version)
         min_android_esc = html.escape(details.get('min_android', 'Android 8.0+'))
         arch_esc = html.escape(details.get('arch', 'Universal'))
-        link_esc = html.escape(item['link'])
 
         # Format changelog
         raw_changelog = details.get('changelog', '').strip()
@@ -95,7 +101,7 @@ class TelegramUploader:
 
     def send_via_bot_api(self, file_path, caption):
         """Send APK file via standard Telegram Bot API (< 50 MB) using HTML mode."""
-        logger.info(f"Sending APK file via Telegram Bot API (HTML mode) to {self.chat_id}...")
+        logger.info(f"Sending APK file via Telegram Bot API (HTTP) to {self.chat_id}...")
         url = f"https://api.telegram.org/bot{self.bot_token}/sendDocument"
 
         filename = os.path.basename(file_path)
@@ -118,11 +124,18 @@ class TelegramUploader:
             return result
 
     async def _send_via_telethon(self, file_path, caption):
-        """Send APK file via Telethon MTProto (supports up to 2 GB) using HTML mode."""
+        """Send APK file via Telethon MTProto (supports up to 2 GB) using non-interactive sign-in."""
         from telethon import TelegramClient
-        async with TelegramClient("hyperos_bot_session", self.api_id, self.api_hash) as client:
-            await client.start(bot_token=self.bot_token)
-            logger.info(f"Uploading APK file via Telethon MTProto to {self.chat_id}...")
+        client = TelegramClient("hyperos_bot_session", self.api_id, self.api_hash)
+        try:
+            logger.info("Connecting Telethon client...")
+            await client.connect()
+            if not await client.is_user_authorized():
+                logger.info("Authorizing Telethon client with bot token...")
+                await client.sign_in(bot_token=self.bot_token)
+
+            target_chat = self.get_numeric_chat_id()
+            logger.info(f"Uploading APK file via Telethon MTProto to {target_chat}...")
 
             def progress(current, total):
                 pct = (current / total) * 100
@@ -130,15 +143,17 @@ class TelegramUploader:
                     logger.info(f"Upload Progress: {pct:.1f}% ({current // (1024*1024)}MB / {total // (1024*1024)}MB)")
 
             msg = await client.send_file(
-                entity=self.chat_id,
+                entity=target_chat,
                 file=file_path,
                 caption=caption,
                 parse_mode='html',
                 force_document=True,
                 progress_callback=progress
             )
-            logger.info("Successfully uploaded APK to Telegram via Telethon!")
+            logger.info(f"Successfully uploaded APK via Telethon! Message ID: {msg.id}")
             return msg
+        finally:
+            await client.disconnect()
 
     def upload_post(self, file_path, item, details, file_size_mb):
         """Uploads the APK file attached with the beautiful caption."""
@@ -151,14 +166,10 @@ class TelegramUploader:
         # If file is over 49 MB, use Telethon MTProto
         if file_size_mb >= 49.0:
             if self.api_id and self.api_hash:
-                try:
-                    logger.info(f"File is {file_size_mb:.2f} MB. Using Telethon for high-capacity upload...")
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    return loop.run_until_complete(self._send_via_telethon(file_path, caption))
-                except Exception as e:
-                    logger.error(f"Telethon upload failed: {e}. Falling back to text post...", exc_info=True)
-                    return self.send_text_post(caption)
+                logger.info(f"File is {file_size_mb:.2f} MB. Using Telethon for high-capacity upload...")
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                return loop.run_until_complete(self._send_via_telethon(file_path, caption))
             else:
                 logger.warning(
                     f"File is {file_size_mb:.2f} MB (exceeds 50MB limit) and API_ID/API_HASH are not set."
