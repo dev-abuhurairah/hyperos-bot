@@ -1,18 +1,8 @@
-=== Starting Telethon Upload Test ===
-HTTP getChat: 200 -> {"ok":true,"result":{"id":-1002054234005,"title":"HyperOS Apks","username":"hyperosapks_miui","type":"channel","active_usernames":["hyperosapks_miui"],"description":"I will never place any kind of Promotional Ads in this Channel. All Apps Are extracted from Ruby Indonesia.","invite_link":"https://t.me/+mrv2U601BmIzMjBk","can_send_gift":true,"has_visible_history":true,"can_send_paid_media":true,"accepted_gift_types":{"unlimited_gifts":true,"limited_gifts":true,"unique_gifts":true,"premium_subscription":true,"gifts_from_channels":true},"photo":{"small_file_id":"AQADBAAED2sbJyIYUgAIAgADa9DpsBb____koTYejilFMD0E","small_file_unique_id":"AQAED2sbJyIYUgAB","big_file_id":"AQADBAAED2sbJyIYUgAIAwADa9DpsBb____koTYejilFMD0E","big_file_unique_id":"AQAED2sbJyIYUgE"},"pinned_message":{"message_id":86,"sender_chat":{"id":-1002054234005,"title":"HyperOS Apks","username":"hyperosapks_miui","type":"channel"},"chat":{"id":-1002054234005,"title":"HyperOS Apks","username":"hyperosapks_miui","type":"channel"},"date":1791184766,"edit_date":1791205178,"text":"\ud83d\ude80 We\u2019re Back \u2014 And Fully Automated!\nThis channel will be fully active again within the next 2 days.\nWe\u2019ve built an automated system that continuously monitors the Xiaomi Updates Tracker API for new updates and automatically posts them to our Telegram channel. This means you\u2019ll receive the latest Xiaomi updates faster and without unnecessary delays.\n\ud83d\udce2 Stay tuned \u2014 exciting updates are coming!\nWe also sincerely apologize for our inactivity over the past two years. During that time, we were extremely busy and unfortunately couldn\u2019t properly manage our channels. As a result, we ended up losing 4\u20135 of our major channels.\nDespite that setback, we\u2019re genuinely happy to be starting this journey again. \ud83d\udc99\nThank you to everyone who stayed with us and supported us throughout the years. We\u2019re looking forward to building everything back, better than ever.\nA new chapter begins. \ud83d\ude80","entities":[{"offset":3,"length":33,"type":"bold"},{"offset":93,"length":6,"type":"bold"},{"offset":164,"length":26,"type":"bold"},{"offset":355,"length":41,"type":"bold"},{"offset":458,"length":9,"type":"bold"},{"offset":599,"length":25,"type":"bold"},{"offset":857,"length":24,"type":"bold"}]},"available_reactions":[],"max_reaction_count":11,"accent_color_id":5}}
-Numeric Chat ID: -1002054234005
-Initializing TelegramClient...
-FATAL Telethon Error: EOFError: EOF when reading a line
-Traceback (most recent call last):
-  File "/home/runner/work/hyperos-bot/hyperos-bot/test_telethon_upload.py", line 35, in main
-    async with TelegramClient("test_bot_session", api_id, api_hash) as client:
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/telethon/client/auth.py", line 669, in __aenter__
-    return await self.start()
-           ^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/telethon/client/auth.py", line 167, in _start
-    value = phone()
-            ^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/telethon/client/auth.py", line 22, in <lambda>
-    phone: typing.Union[typing.Callable[[], str], str] = lambda: input('Please enter your phone (or bot token): '),
-                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-EOFError: EOF when reading a line
+=== Starting Telethon Upload Test v2 ===
+Connecting client...
+Checking authorization...
+Signing in with bot token...
+Successfully logged in as: @hyperosapks_bot (ID: 8984371861)
+Created dummy file: test_sample.apk
+Sending file to chat -1002054234005...
+SUCCESS! Message sent with ID: 96
